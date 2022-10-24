@@ -90,7 +90,6 @@ function AWSCostAggregator:access(config)
 
   -- 
   -- format before using in active body
-  -- awsRequestSignature.headers["Connection"] = "Keep-Alive"
   kong.log.info(cjson.encode(awsRequestSignature))
 
   -- 
