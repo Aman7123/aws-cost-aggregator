@@ -16,5 +16,8 @@ return {
         {show_raw_error_in_http = {type = "boolean", default = false}}
       },
     } }
-  } 
+  },
+  entity_checks = {
+    { mutually_required = { "config.aws_key", "config.aws_secret" } }
+  }
 }

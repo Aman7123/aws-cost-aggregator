@@ -31,4 +31,15 @@ describe(PLUGIN_NAME .. ": (schema)", function()
     assert.equal(type(err), "nil")
   end)
 
+  it("configuration without secret is rejected", function()
+    local ok, err = validate({
+      aws_key = "AKIAIOSFODNN7EXAMPLE",
+      aws_region = "us-east-1",
+      show_raw_error_in_http = false
+    })
+
+    assert.equal(type(ok), "nil")
+    assert.equal(type(err), "table")
+  end)
+
 end)
