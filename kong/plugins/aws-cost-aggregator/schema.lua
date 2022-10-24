@@ -1,12 +1,11 @@
 local typedefs = require "kong.db.schema.typedefs"
 local PLUGIN_NAME = "aws-cost-aggregator"
-local CONSUMER = typedefs.no_consumer
 local REQUIRED_STRING_OPTS = {type = "string", required = true}
 
 return {
   name = PLUGIN_NAME,
   fields = {
-    { consumer = CONSUMER },
+    { consumer = typedefs.no_consumer },
     { config = {
       type = "record",
       fields = {

@@ -15,6 +15,24 @@ Plugin Configuration
 | aws_region | ✅ | - | The AWS region where the Lambda function is located. The plugin does not attempt to validate the supplied region name. |
 | show_raw_error_in_http | - | false | Displays more detailed errors in http log. |
 
+AWS IAM Permissions
+=================================
+A sample IAM policy looks like:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ce:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
 Plugin Config Example
 =================================
 See the [Kong decK Configuration](./resources/deck_kong_v3.yaml) for an example of this plugin being configured and deployed.

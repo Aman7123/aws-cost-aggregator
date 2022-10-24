@@ -10,6 +10,7 @@ local GLOBAL_ERROR = [[There has been an issue with this request.
 local COST_EXPLORER_FUNCTION = "AWSInsightsIndexService.GetCostAndUsage"
 local AWS_SERVICE = "ce"
 local COST_EXPLORER_URL = fmt("%s.%s", AWS_SERVICE, "%s.amazonaws.com")
+local DATE_FORMAT = "%s-%s-%s"
 
 -- set the plugin priority, which determines plugin execution order
 local AWSCostAggregator = {}
@@ -32,6 +33,14 @@ local function do_error(do_debug, error)
   return kong.response.exit(500, baseErrorMsg)
 end
 
+local function adjust_months(start_month, adjustment)
+  local final = start_month + adjustment
+  if final < 0 then
+      return adjust_months(12, final)
+  end
+  return final
+end
+
 -- runs in the 'access_by_lua_block'
 function AWSCostAggregator:access(config)
 
@@ -41,8 +50,8 @@ function AWSCostAggregator:access(config)
   local awsRequestBody = {
     Granularity = "MONTHLY",
     TimePeriod = {
-      End = fmt("%s/%s/%s", now.year, now.month, now.day),
-      Start = fmt("%s/%s/%s", now.year, (now.month - 1), now.day)
+      End = fmt(DATE_FORMAT, now.year, now.month, now.day),
+      Start = fmt(DATE_FORMAT, now.year, adjust_months(now.month, -1), now.day)
     },
     Metrics = {
       "BlendedCost",
