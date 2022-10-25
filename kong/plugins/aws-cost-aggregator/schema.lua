@@ -1,6 +1,7 @@
 local typedefs = require "kong.db.schema.typedefs"
+
 local PLUGIN_NAME = "aws-cost-aggregator"
-local REQUIRED_STRING_OPTS = {type = "string", required = true}
+local ENCRYPT_STRING_OPTS = { type = "string", encrypted = true }
 
 return {
   name = PLUGIN_NAME,
@@ -9,10 +10,12 @@ return {
     { config = {
       type = "record",
       fields = {
-        {aws_key    = REQUIRED_STRING_OPTS},
-        {aws_secret = REQUIRED_STRING_OPTS},
-        {aws_region = REQUIRED_STRING_OPTS},
-        {show_raw_error_in_http = {type = "boolean", default = false}}
+        {aws_key    = ENCRYPT_STRING_OPTS},
+        {aws_secret = ENCRYPT_STRING_OPTS},
+        {aws_region = typedefs.host },
+        {aws_assume_role_arn = ENCRYPT_STRING_OPTS},
+        {aws_role_session_name = { type = "string", default = "kong" }},
+        {show_raw_error_in_http = { type = "boolean", default = false }}
       },
     } }
   },
