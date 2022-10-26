@@ -4,16 +4,11 @@ AWS Cost Aggregator
 * Prerequisites: Lua knowledge / experience
 * Kong version: 3.0.0
 
-This plugin will be able to serve a prometheus endpoint with aggregated cost data from AWS for the Kong service, or this plugin will export that info from the route with the plugin applied. This plugin is in early stages of development however it has tests and contains running code.
+This plugin creates additional metrics to add to the basic Kong Prometheus `/metric` endpoints. This plugin does not effect or change any exist Kong prometheus plugin metrics.
 
 Plugin Configuration
 =================================
-| Value | Required | Default | Description |
-|---|---|---|---|
-| aws_key | ✅ | - | The AWS key credential to be used when invoking the function. |
-| aws_secret | ✅ | - | The AWS secret credential to be used when invoking the function. |
-| aws_region | ✅ | - | The AWS region where the Lambda function is located. The plugin does not attempt to validate the supplied region name. |
-| show_raw_error_in_http | - | false | Displays more detailed errors in http log. |
+This plugin does not have a config needing to be set within Kong. This plugin cannot be attached to a consumer/route/service through Kong.
 
 AWS IAM Permissions
 =================================

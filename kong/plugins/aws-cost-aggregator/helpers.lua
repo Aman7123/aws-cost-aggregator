@@ -1,6 +1,6 @@
 local PLUGIN_NAME = "aws-cost-aggregator"
-local cjson = require "cjson.safe"
-local date = require "date"
+local cjson = require("cjson.safe")
+local date = require("date")
 local fmt = string.format
 
 local _M = {}
@@ -34,11 +34,13 @@ end
 -- This function executes a Kong breakpoint for an exception
 -- @param do_debug can be provided to allow additional params on http response
 -- @param err is anyhting provided by the application
-function _M.throw_kong_exception(do_debug, error)
+function _M.log_error(do_debug, error, do_exit)
+  if not do_exit then
+    do_exit = true
+  end
   -- format global code
   local GLOBAL_ERROR = [[There has been an issue with this request.
-  The internal connection to AWS could not be established.
-  If this problem persists please contact an admin!]]
+  If this problem persists please contact an admin]]
   local formatGlobalError = GLOBAL_ERROR:gsub("\n ", "")
   -- build base message
   local baseErrorMsg = {
@@ -47,12 +49,19 @@ function _M.throw_kong_exception(do_debug, error)
   -- add specific items for debug mode
   if do_debug then
     baseErrorMsg["plugin"] = PLUGIN_NAME
-    baseErrorMsg["error"] = tostring(error)
+    baseErrorMsg["error"] = tostring(error:gsub("\n ", ""))
   end
   -- log with kong
-  kong.log.err("[", PLUGIN_NAME, "] ", cjson.encode(err))
+  kong.log.err("[", PLUGIN_NAME, "] ", cjson.encode(error))
+  kong.log.err("[", PLUGIN_NAME, "] ", cjson.encode(baseErrorMsg))
   -- execute server fault
-  return kong.response.exit(500, baseErrorMsg)
+  if do_exit then
+    return kong.response.exit(500, baseErrorMsg)
+  end
+end
+
+function _M.log_debug(msg)
+  kong.log.debug("[", PLUGIN_NAME, "] ", msg)
 end
 
 return _M

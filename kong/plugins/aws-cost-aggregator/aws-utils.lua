@@ -1,6 +1,6 @@
-local http = require "resty.http"
-local cjson = require "cjson.safe"
-local aws_v4 = require "kong.plugins.aws-lambda.v4"
+local http = require("resty.http")
+local cjson = require("cjson.safe")
+local aws_v4 = require("kong.plugins.aws-lambda.v4")
 local fmt = string.format
 
 local AWS_SERVICE = "ce"
@@ -74,6 +74,9 @@ end
 -- @params body A table or string
 -- @params ce_function The value of the X-Amz-Target
 function _M.cost_explorer_opts(config, body, ce_function)
+  if not config then
+    config = {}
+  end
 
   -- turn body into string if table, because we're nice
   local upstreamBodyAsString = body
@@ -109,7 +112,7 @@ function _M.cost_explorer_opts(config, body, ce_function)
   local aws_conf = {
     aws_region = region,
     aws_assume_role_arn = config.aws_assume_role_arn,
-    aws_role_session_name = config.aws_role_session_name,
+    aws_role_session_name = (config.aws_role_session_name or "kong"),
   }
 
   if not config.aws_key then

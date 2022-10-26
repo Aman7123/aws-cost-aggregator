@@ -34,9 +34,7 @@ build = {
     ["kong.plugins."..plugin_name..".schema"] = "kong/plugins/"..plugin_name.."/schema.lua",
     ["kong.plugins."..plugin_name..".helpers"] = "kong/plugins/"..plugin_name.."/helpers.lua",
     ["kong.plugins."..plugin_name..".aws-utils"] = "kong/plugins/"..plugin_name.."/aws-utils.lua",
-    ["kong.plugins."..plugin_name..".prometheus"] = "kong/plugins/"..plugin_name.."/prometheus.lua",
+    ["kong.plugins."..plugin_name..".costexplorer-utils"] = "kong/plugins/"..plugin_name.."/costexplorer-utils.lua",
     ["kong.plugins."..plugin_name..".exporter"] = "kong/plugins/"..plugin_name.."/exporter.lua",
-    ["kong.plugins."..plugin_name..".api"] = "kong/plugins/"..plugin_name.."/api.lua",
-    ["kong.plugins."..plugin_name..".status_api"] = "kong/plugins/"..plugin_name.."/status_api.lua",
   }
 }

@@ -1,14 +1,18 @@
-local kong = kong
-local ngx = ngx
-local lower = string.lower
-local concat = table.concat
-local cjson = require "cjson.safe"
-
 local PLUGIN_NAME = "aws-cost-aggregator"
+local log_error = require("kong.plugins."..PLUGIN_NAME..".helpers").log_error
+local log_debug = require("kong.plugins."..PLUGIN_NAME..".helpers").log_debug
+local aws_monthly = require("kong.plugins."..PLUGIN_NAME..".costexplorer-utils").monthly_cost_last_12_months
+local exporter = require('kong.plugins.prometheus.exporter')
+local cjson = require("cjson.safe")
+local fmt = string.format
+
+local COST_MSG = "\n# HELP Breakdown over the last 12 months and values have been rounded to the nearest cent,"
 local AWS_COST_ARTICLE = "https://aws.amazon.com/blogs/aws-cloud-financial-management/understanding-your-aws-cost-datasets-a-cheat-sheet/"
+local CUSTOM_OWNERSHIP_MSG = fmt("\n# MODIFIED this data was added by %s", PLUGIN_NAME)
+local CUSTOM_LINK_MSG = fmt("\n# view this link for blended vs unblended @ %s", AWS_COST_ARTICLE)
 local metrics = {}
 -- prometheus.lua instance
-local prometheus
+local prometheus = exporter.get_prometheus()
 
 local function init()
   local shm = "prometheus_metrics"
@@ -17,58 +21,75 @@ local function init()
     return
   end
 
-  prometheus = require("kong.plugins."..PLUGIN_NAME..".prometheus").init(shm, "aws_")
+  local blended_annotation =  CUSTOM_OWNERSHIP_MSG .. COST_MSG .. CUSTOM_LINK_MSG
 
   -- global metrics
-  metrics.blended_costs = prometheus:gauge("monthly_blended_cost",
-                                            "Breakdown over the last 12 months and values have been rounded to the nearest cent, " ..
-                                            "more info on this topic start at an article like " .. AWS_COST_ARTICLE,
-                                            -- {"start", "end", "unit", "estimated"},
-                                            nil,
+  metrics.blended_costs = prometheus:gauge("aws_monthly_blended_cost",
+                                            blended_annotation,
+                                            {"start", "end", "unit", "estimated"},
                                             prometheus.LOCAL_STORAGE)
-  metrics.unblended_costs = prometheus:gauge("monthly_unblended_cost",
-                                            "Breakdown over the last 12 months and values have been rounded to the nearest cent, " ..
-                                            "more info on this topic start at an article like " .. AWS_COST_ARTICLE,
-                                            -- {"start", "end", "unit", "estimated"},
-                                            nil,
+  metrics.unblended_costs = prometheus:gauge("aws_monthly_unblended_cost",
+                                            blended_annotation,
+                                            {"start", "end", "unit", "estimated"},
                                             prometheus.LOCAL_STORAGE)
 end
 
-local function init_worker()
-  prometheus:init_worker()
-end
-
-
-local function metric_data(write_fn)
-  kong.log.info("type of write_fn: ", type(write_fn))
-  kong.log.info("type of ngx.shared.prometheus_metrics: ", type(ngx.shared.prometheus_metrics))
-  kong.log.info(cjson.encode(write_fn))
-  kong.log.info(cjson.encode(ngx.shared.prometheus_metrics))
-  -- for a,b in ipairs(ngx.shared.prometheus_metrics) do
-  --   kong.info.log("a=", a, "b=", b)
-  -- end
-  if not prometheus or not metrics then
-    kong.log.err("prometheus: plugin is not initialized, please make sure ",
-                 " 'prometheus_metrics' shared dict is present in nginx template")
-    return kong.response.exit(500, { message = "An unexpected error occurred" })
+local function log(config)
+  -- We rule our booleans as the config value,
+  -- this is because during a call from the timer the
+  -- first argument is a premature value
+  -- we want that value to be nil
+  if type(config) == "boolean" then
+    config = nil
   end
 
-  metrics.blended_costs:set(1)
-  metrics.unblended_costs:set(1)
-  
-  prometheus:metric_data(write_fn)
-end
+  log_debug("running exporter re-pop")
 
-local function collect()
-  ngx.header["Content-Type"] = "text/plain; charset=UTF-8"
-  ngx.header["X-Test"] = "Hellow"
+  if not metrics then
+    local msg = "prometheus: can not log metrics because of an initialization "
+    .. "error, please make sure that you've declared "
+    .. "'prometheus_metrics' shared dict in your nginx template"
+    return nil, msg
+  end
 
-  metric_data()
+  -- actual JSON parsing here
+  local aws_monthly_response, err = aws_monthly(config)
+  if not aws_monthly_response then
+    return nil, err
+  end
+
+  local monthly_results_by_time = aws_monthly_response.ResultsByTime
+  for _,monthly_result in ipairs(monthly_results_by_time) do
+    local labels_table_blended = {0, 0, 0, 0}
+    local labels_table_unblended = {0, 0, 0, 0}
+
+    -- gather estimated label
+    labels_table_blended[4] = monthly_result.Estimated
+    labels_table_unblended[4] = monthly_result.Estimated
+
+    -- gather dates for this individule monthly result
+    local time_period = monthly_result.TimePeriod
+    labels_table_blended[1] = time_period.Start
+    labels_table_blended[2] = time_period.End
+    labels_table_unblended[1] = time_period.Start
+    labels_table_unblended[2] = time_period.End
+
+    -- gather the total array
+    local total_array = monthly_result.Total
+
+    -- gather and complete blended cost
+    local blended_cost = total_array.BlendedCost
+    labels_table_blended[3] = blended_cost.Unit
+    metrics.blended_costs:set(blended_cost.Amount, labels_table_blended)
+
+    -- gather and complete unblended cost
+    local unblended_cost = total_array.UnblendedCost
+    labels_table_unblended[3] = unblended_cost.Unit
+    metrics.unblended_costs:set(unblended_cost.Amount, labels_table_unblended)
+  end
 end
 
 return {
-  init        = init,
-  init_worker = init_worker,
-  metric_data = metric_data,
-  collect     = collect
+  init = init,
+  log  = log,
 }

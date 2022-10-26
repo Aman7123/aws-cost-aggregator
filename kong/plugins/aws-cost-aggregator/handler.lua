@@ -1,72 +1,51 @@
 -- load the base plugin object and create a subclass
 local PLUGIN_NAME = "aws-cost-aggregator"
 local exporter = require("kong.plugins."..PLUGIN_NAME..".exporter")
-local get_days_in_month = require("kong.plugins."..PLUGIN_NAME..".helpers").get_days_in_month
-local pad_date_integer = require("kong.plugins."..PLUGIN_NAME..".helpers").pad_date_integer
-local throw_kong_exception = require("kong.plugins."..PLUGIN_NAME..".helpers").throw_kong_exception
-local aws_request = require("kong.plugins."..PLUGIN_NAME..".aws-utils").aws_request
-local cost_explorer_opts = require("kong.plugins."..PLUGIN_NAME..".aws-utils").cost_explorer_opts
-local cjson = require "cjson.safe"
+local log_error = require("kong.plugins."..PLUGIN_NAME..".helpers").log_error
+local log_debug = require("kong.plugins."..PLUGIN_NAME..".helpers").log_debug
 local fmt = string.format
-local COST_EXPLORER_FUNCTION = "AWSInsightsIndexService.GetCostAndUsage"
-local DATE_FORMAT = "%s-%s-%s"
+local ngx_timer_at = ngx.timer.at
+local ngx_timer_every = ngx.timer.every
 
+-- init the unique labels in prometheus
 exporter.init()
 
 -- set the plugin priority, which determines plugin execution order
 local AWSCostAggregator = {}
-AWSCostAggregator.PRIORITY = 751
+AWSCostAggregator.PRIORITY = 10
 AWSCostAggregator.VERSION = "1.0.0"
 
+-- runs in the 'init_worker_by_lua_block'
 function AWSCostAggregator:init_worker()
-  exporter.init_worker()
-end
-
--- runs in the 'access_by_lua_block'
-function AWSCostAggregator:access(config)
-
-  -- 
-  -- build aws request
-  local now = os.date ("*t")
-  local awsRequestBody = {
-    Granularity = "MONTHLY",
-    TimePeriod = {
-      End = fmt(DATE_FORMAT, now.year, pad_date_integer(now.month), get_days_in_month(now.month, now.year)),
-      Start = fmt(DATE_FORMAT, (now.year - 1), pad_date_integer(now.month), "01")
-    },
-    Metrics = {
-      "BlendedCost",
-      "UnblendedCost"
-    }
-  }
-
-  -- 
-  -- connect to aws
-  local awsRequestSignature, err = cost_explorer_opts(config, awsRequestBody, COST_EXPLORER_FUNCTION)
-  if not awsRequestSignature then
-    throw_kong_exception(config.show_raw_error_in_http, err)
+  log_debug("running init_worker")
+  -- This below varibale is a lock to ensure only a single worker populates prometheus per kong deployment
+  local lock_cache_key = fmt("%s:init_worker_lock", PLUGIN_NAME)
+  -- Gather what type of node is spinning up
+  local node_role = kong.configuration.role
+  -- enable only execution in dp or traditional modes...
+  -- this means in hybrid the metrics endpoint on CP is unchanged
+  if (node_role == "data_plane" or node_role == "traditional") then
+    local success = ngx.shared.kong_locks:add(lock_cache_key, true, 60)
+    -- Success is true if the lock was created, false if it already existed
+    if success then
+      log_debug(fmt("selected worker id %s for executing timers", ngx.worker.pid()))
+      -- Create a pointer to the function for use within the timers
+      -- I had problems assigning this `exporter.log` directly to the timer
+      local run_function = exporter.log
+      -- Initial created so our metrics are available ASAP
+      local _, err = ngx_timer_at(0, run_function)
+      if err then
+        log_error(true, "Failed to start the nginx_timer_at", false)
+      end
+      -- Create this delayed monitor for watching every few minutes
+      --                           5 minutes
+      local _, err = ngx_timer_every(300, run_function)
+      if err then
+        log_error(true, "Failed to start the nginx_timer_every", false)
+      end
+    end
   end
-
-  -- 
-  -- format before using in active body
-  kong.log.info(cjson.encode(awsRequestSignature))
-
-  -- 
-  -- query aws
-  local response, err = aws_request(awsRequestSignature)
-  if not response then
-    throw_kong_exception(config.show_raw_error_in_http, (err or response.body))
-  end
-
-  -- 
-  -- build response
-  kong.response.exit(response.status, response.body, response.headers)
 end
-
--- function AWSCostAggregator:log()
---   local message = kong.log
---   exporter.log()
--- end
 
 -- return our plugin object
 return AWSCostAggregator
