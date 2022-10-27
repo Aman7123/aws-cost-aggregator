@@ -3,6 +3,17 @@ local cjson = require("cjson.safe")
 local date = require("date")
 local fmt = string.format
 
+local AWS_KEY = os.getenv("AWS_KEY")
+local AWS_SECRET = os.getenv("AWS_SECRET")
+local AWS_ASSUME_ROLE_ARN = os.getenv("AWS_ASSUME_ROLE_ARN")
+local AWS_ROLE_SESSION_NAME do
+  AWS_ROLE_SESSION_NAME = os.getenv("AWS_ROLE_SESSION_NAME") or "kong"
+end
+local AG_UPDATE_FREQUENCY do
+  AG_UPDATE_FREQUENCY = tonumber(os.getenv("AG_UPDATE_FREQUENCY")) or 300
+end
+local AG_TAGS = os.getenv("AG_TAGS")
+
 local _M = {}
 
 -- This function know how many days are in each month and can account for leap years
@@ -80,6 +91,36 @@ function _M.string_table_flip_flop(val)
     return cjson.decode(val)
   end
   return val
+end
+
+-- Can split a string of "key:val,key2:val2" into a table like:
+-- {
+--   key = val
+--   key2 = val2
+-- }
+-- @param val is string
+function _M.split_csv_table(val)
+  local t = {}
+  for k, v in val:gmatch("(%w+):(.+)") do
+    t[k] = v
+  end
+  return t
+end
+
+-- special function to make obtaining config easier
+-- interna use only
+function _M.get_config_from_env()
+  -- build table
+  local res = {
+    aws_key               = AWS_KEY,
+    aws_secret            = AWS_SECRET,
+    aws_assume_role_arn   = AWS_ASSUME_ROLE_ARN,
+    aws_role_session_name = AWS_ROLE_SESSION_NAME,
+    ag_update_frequency   = AG_UPDATE_FREQUENCY,
+    ag_tags               = _M.split_csv_table(AG_TAGS)
+  }
+  -- return
+  return res
 end
 
 return _M

@@ -52,11 +52,13 @@ local function log(config, config_from_timer)
   -- this is because during a call from the timer the
   -- first argument is a premature value
   -- we want that value to be nil
+  log_debug(fmt("running exporter re-pop with config %s", cjson.encode(config)))
   if type(config) == "boolean" then
     config = config_from_timer
   end
 
-  log_debug("running exporter re-pop")
+  log_debug(fmt("running exporter re-pop with config %s", cjson.encode(config)))
+  log_debug(fmt("running exporter re-pop with config_from_timer %s", cjson.encode(config_from_timer)))
 
   if not metrics then
     local msg = "prometheus: can not log metrics because of an initialization "

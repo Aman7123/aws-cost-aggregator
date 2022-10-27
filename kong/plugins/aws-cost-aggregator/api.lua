@@ -1,14 +1,13 @@
 local PLUGIN_NAME = "aws-cost-aggregator"
 local exporter = require("kong.plugins."..PLUGIN_NAME..".exporter")
 local log_error = require("kong.plugins."..PLUGIN_NAME..".helpers").log_error
-local log_debug = require("kong.plugins."..PLUGIN_NAME..".helpers").log_debug
-local cjson = require("cjson.safe")
-local fmt = string.format
+local get_config_from_env = require("kong.plugins."..PLUGIN_NAME..".helpers").get_config_from_env
 
 return {
   ["/ag-pop"] = {
     GET = function()
-      local res, err = exporter.log()
+      local config = get_config_from_env()
+      local res, err = exporter.log(config)
       if err then
         kong.log.err("error")
         log_error(true, err, true)

@@ -26,6 +26,24 @@ function _M.monthly_cost_last_12_months(config)
     }
   }
 
+  if type(config) ~= nil then
+    if config.ag_tags ~= nil then
+      for k, v in pairs(config.ag_tags) do
+        local filter_obj = {
+          Tags = {
+            Key = k,
+            Values = {
+              v
+            }
+          }
+        }
+
+        awsRequestBody["Filter"] = {}
+        awsRequestBody["Filter"] = filter_obj
+      end
+    end
+  end
+
   local aws_res, err = do_aws(config, awsRequestBody, COST_EXPLORER_FUNCTION)
   if err then
     kong.log.err("error")
@@ -49,6 +67,24 @@ function _M.monthly_cost_last_30_days(config)
       "UnblendedCost"
     }
   }
+
+  if type(config) ~= nil then
+    if config.ag_tags ~= nil then
+      for k, v in pairs(config.ag_tags) do
+        local filter_obj = {
+          Tags = {
+            Key = k,
+            Values = {
+              v
+            }
+          }
+        }
+
+        awsRequestBody["Filter"] = {}
+        awsRequestBody["Filter"] = filter_obj
+      end
+    end
+  end
 
   local aws_res, err = do_aws(config, awsRequestBody, COST_EXPLORER_FUNCTION)
   if err then
