@@ -1,6 +1,9 @@
+local PLUGIN_NAME = "aws-cost-aggregator"
 local http = require("resty.http")
 local cjson = require("cjson.safe")
 local aws_v4 = require("kong.plugins.aws-lambda.v4")
+local log_debug = require("kong.plugins."..PLUGIN_NAME..".helpers").log_debug
+local string_table_flip_flop = require("kong.plugins."..PLUGIN_NAME..".helpers").string_table_flip_flop
 local fmt = string.format
 
 local AWS_SERVICE = "ce"
@@ -53,7 +56,7 @@ end
 
 -- This function generates a new http module and makes requests for AWS information
 -- @param awsV4 the signature from the aws-lambda v4 module [more info here](https://github.com/Kong/kong/blob/master/kong/plugins/aws-lambda/v4.lua)
-function _M.aws_request(awsV4)
+local function aws_request(awsV4)
   -- make new http
   local client = http.new()
   -- format new request
@@ -73,7 +76,7 @@ end
 -- @params config The params from a Kong handler session
 -- @params body A table or string
 -- @params ce_function The value of the X-Amz-Target
-function _M.cost_explorer_opts(config, body, ce_function)
+local function cost_explorer_opts(config, body, ce_function)
   if not config then
     config = {}
   end
@@ -144,6 +147,33 @@ function _M.cost_explorer_opts(config, body, ce_function)
 
   -- Return the signed request
   return aws_v4(requestSignatureOptions)
+end
+
+function _M.do_query(config, aws_query, aws_function_string)
+  -- connect to aws
+  local awsRequestSignature, err = cost_explorer_opts(config, aws_query, aws_function_string)
+  log_debug(fmt("the aws sig is type %s with data %s", type(awsRequestSignature), cjson.encode(awsRequestSignature)))
+  if err then
+    kong.log.err("error")
+    log_error(true, err)
+    return nil, err
+  end
+
+  -- query aws
+  local response, err = aws_request(awsRequestSignature)
+  local get_res_body = response.body
+  log_debug(fmt("the response from aws is %s", cjson.encode(get_res_body)))
+  if err then
+    kong.log.err("error")
+    log_error(true, cjson.encode(response.headers))
+    log_error(true, (err or get_res_body))
+    return nil, err
+  end
+  
+  -- string response to table
+  local response_tbl = string_table_flip_flop(get_res_body)
+
+  return response_tbl
 end
 
 return _M

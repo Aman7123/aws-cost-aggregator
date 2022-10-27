@@ -34,9 +34,10 @@ end
 -- This function executes a Kong breakpoint for an exception
 -- @param do_debug can be provided to allow additional params on http response
 -- @param err is anyhting provided by the application
+-- @param do_exit defaults to false and controls if kong.exit 
 function _M.log_error(do_debug, error, do_exit)
-  if not do_exit then
-    do_exit = true
+  if type(do_exit) == nil then
+    do_exit = false
   end
   -- format global code
   local GLOBAL_ERROR = [[There has been an issue with this request.
@@ -60,8 +61,25 @@ function _M.log_error(do_debug, error, do_exit)
   end
 end
 
+-- This function does a kong debug log
+-- @param message is the body
 function _M.log_debug(msg)
   kong.log.debug("[", PLUGIN_NAME, "] ", msg)
+end
+
+-- This function discovers strings and flops to tables using cjson and vice-versa
+-- @param val should be passed as string or table but not nil
+function _M.string_table_flip_flop(val)
+  if type(val) == "nil" then
+    return nil
+  end
+  if type(val) == "table" then
+    return cjson.encode(val)
+  end
+  if type(val) == "string" then
+    return cjson.decode(val)
+  end
+  return val
 end
 
 return _M

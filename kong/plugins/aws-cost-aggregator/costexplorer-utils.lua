@@ -2,19 +2,17 @@ local PLUGIN_NAME = "aws-cost-aggregator"
 local get_days_in_month = require("kong.plugins."..PLUGIN_NAME..".helpers").get_days_in_month
 local pad_date_integer = require("kong.plugins."..PLUGIN_NAME..".helpers").pad_date_integer
 local log_error = require("kong.plugins."..PLUGIN_NAME..".helpers").log_error
-local aws_request = require("kong.plugins."..PLUGIN_NAME..".aws-utils").aws_request
-local cost_explorer_opts = require("kong.plugins."..PLUGIN_NAME..".aws-utils").cost_explorer_opts
-local cjson = require("cjson.safe")
+local do_aws = require("kong.plugins."..PLUGIN_NAME..".aws-utils").do_query
 local fmt = string.format
+
+local COST_EXPLORER_FUNCTION = "AWSInsightsIndexService.GetCostAndUsage"
+local DATE_FORMAT = "%s-%s-%s"
 
 local _M = {}
 
+-- This function gets the last 12 months of cost
 function _M.monthly_cost_last_12_months(config)
-  local COST_EXPLORER_FUNCTION = "AWSInsightsIndexService.GetCostAndUsage"
-  local DATE_FORMAT = "%s-%s-%s"
-
-  -- 
-  -- build aws request
+  -- build the monhtly cost query 
   local now = os.date ("*t")
   local awsRequestBody = {
     Granularity = "MONTHLY",
@@ -28,23 +26,36 @@ function _M.monthly_cost_last_12_months(config)
     }
   }
 
-  -- 
-  -- connect to aws
-  local awsRequestSignature, err = cost_explorer_opts(config, awsRequestBody, COST_EXPLORER_FUNCTION)
-  if not awsRequestSignature then
-    log_error(true, err, false)
+  local aws_res, err = do_aws(config, awsRequestBody, COST_EXPLORER_FUNCTION)
+  if err then
+    kong.log.err("error")
     return nil, err
   end
+  return aws_res
+end
 
-  -- 
-  -- query aws
-  local response, err = aws_request(awsRequestSignature)
-  if not response then
-    log_error(true, (err or response.body), false)
+-- This function gets the last 30 days of cost
+function _M.monthly_cost_last_30_days(config)
+  -- build the monhtly cost query 
+  local now = os.date ("*t")
+  local awsRequestBody = {
+    Granularity = "DAILY",
+    TimePeriod = {
+      End = fmt(DATE_FORMAT, now.year, pad_date_integer(now.month), get_days_in_month(now.month, now.year)),
+      Start = fmt(DATE_FORMAT, now.year, pad_date_integer(now.month), "01")
+    },
+    Metrics = {
+      "BlendedCost",
+      "UnblendedCost"
+    }
+  }
+
+  local aws_res, err = do_aws(config, awsRequestBody, COST_EXPLORER_FUNCTION)
+  if err then
+    kong.log.err("error")
     return nil, err
   end
-
-  return cjson.decode(response.body), nil
+  return aws_res
 end
 
 return _M
