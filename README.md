@@ -6,6 +6,10 @@ AWS Cost Aggregator
 
 This plugin creates additional metrics to add to the basic Kong Prometheus `/metric` endpoints and therefor is supported in both CE and EE. This plugin does not effect or change any exist Kong prometheus plugin metrics. This plugin does not even need to be configured through Kong or applied to any service/route/consumer all execution happens automatically and can be configured through environment variables. The added metrics shows blended and unblended costs on a monthly basis for the last 12 months and for the last 30 days.
 
+Plugin Configuration
+=================================
+This plugin does not have a config needing to be set within Kong. This plugin cannot be attached to a consumer/route/service through Kong. Please use environment variables.
+
 Environment Configuration
 =================================
 | ENV | Example | Description |
@@ -15,12 +19,8 @@ Environment Configuration
 | AWS_REGION | us-east-1 | The AWS region where the CostExplorer is located. The plugin does not attempt to validate the supplied region name. This field is required because our plugin uses AWS SigV4 if the `AWS_REGION` or `AWS_DEFAULT_REGION` environment variables have not been specified, or an invalid region name has been provided, the plugin errors at runtime. |
 | AWS_ASSUME_ROLE_ARN |  | The target AWS IAM role ARN used to invoke the Lambda function. Typically this is used for a cross-account support. |
 | AWS_ROLE_SESSION_NAME | kong | The identifier of the assumed role session. It is used for uniquely identifying a session when the same target role is assumed by different principals or for different reasons. The role session name is also used in the ARN of the assumed role principle. Default is `kong`. |
-| AG_UPDATE_FREQUENCY | 300 | The default wait time between updates to the promotheus exporter, in seconds. |
-| AG_TAGS |  | A CSV of key:value pairs which match tags of infra on AWS and must be in the format ``. When this variable is set the output shown through the Prometheus export will be filtered to machines which strictly contain the listed tags. The more tags the more fine grain the results are. If you are on us-east-1 you can use the url [here](https://us-east-1.console.aws.amazon.com/cost-management/home#/custom) towhich takes you to the explorer screen where you can filter tags to test desired result. |
-
-Plugin Configuration
-=================================
-This plugin does not have a config needing to be set within Kong. This plugin cannot be attached to a consumer/route/service through Kong. Please use environment variables.
+| AG_UPDATE_FREQUENCY | 300 | The default wait time between updates to the Prometheus exporter, in seconds. |
+| AG_TAGS |  | A CSV of key:value pairs which match tags of infra on AWS and must be in the format ``. When this variable is set the output shown through the Prometheus export will be filtered to machines which strictly contain the listed tags. The more tags the more fine grain the results are. If you are on us-east-1 you can use the url [here](https://us-east-1.console.aws.amazon.com/cost-management/home#/custom) which takes you to the explorer screen where you can filter tags to test desired result. |
 
 AWS IAM Permissions
 =================================
@@ -56,10 +56,6 @@ A sample IAM policy looks like:
 Known Issues
 =================================
 Occasionally during startup "prometheus" cannot be found during initial population which will cause Kong to be restarted.
-
-Plugin Config Example
-=================================
-See the [Kong decK Configuration](./resources/deck_kong_v3.yaml) for an example of this plugin being configured and deployed.
 
 Installation
 =================================
