@@ -16,10 +16,11 @@ Environment Configuration
 | AWS_ASSUME_ROLE_ARN |  | The target AWS IAM role ARN used to invoke the Lambda function. Typically this is used for a cross-account support. |
 | AWS_ROLE_SESSION_NAME | kong | The identifier of the assumed role session. It is used for uniquely identifying a session when the same target role is assumed by different principals or for different reasons. The role session name is also used in the ARN of the assumed role principle. Default is `kong`. |
 | AG_UPDATE_FREQUENCY | 300 | The default wait time between updates to the promotheus exporter, in seconds. |
+| AG_TAGS |  | A CSV of key:value pairs which match tags of infra on AWS and must be in the format ``. When this variable is set the output shown through the Prometheus export will be filtered to machines which strictly contain the listed tags. The more tags the more fine grain the results are. If you are on us-east-1 you can use the url [here](https://us-east-1.console.aws.amazon.com/cost-management/home#/custom) towhich takes you to the explorer screen where you can filter tags to test desired result. |
 
 Plugin Configuration
 =================================
-This plugin does not have a config needing to be set within Kong. This plugin cannot be attached to a consumer/route/service through Kong. Please use environment varables.
+This plugin does not have a config needing to be set within Kong. This plugin cannot be attached to a consumer/route/service through Kong. Please use environment variables.
 
 AWS IAM Permissions
 =================================
@@ -31,9 +32,9 @@ If you do not provide an `aws_key` and `aws_secret`, the plugin uses an IAM role
 For example, if you’re running Kong on an EC2 instance, the IAM role that attached to the EC2 will be used, and Kong will fetch the credential from the [EC2 Instance Metadata service(IMDSv1)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html). If you’re running Kong in an ECS container, the task IAM role will be used, and Kong will fetch the credentials from the [container credential provider](https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html). Note that the plugin will first try to fetch from ECS metadata to get the role, and if no ECS metadata related environment variables are available, the plugin falls back on EC2 metadata.
 
 ### AWS region as environment variable
-If the plugin configuration aws_region is unset, the plugin attempts to obtain the AWS region through environment variables `AWS_REGION` and `AWS_DEFAULT_REGION`, with the former taking higher precedence. For example, if both `AWS_REGION` and `AWS_DEFAULT_REGION` are set, the `AWS_REGION` value is used; otherwise, if only `AWS_DEFAULT_REGION` is set, its value is used. If neither configuration aws_region nor environment variables are set, a run-time error “no region or host specified” will be thrown.
+If the plugin configuration `aws_region` is unset, the plugin attempts to obtain the AWS region through environment variables `AWS_REGION` and `AWS_DEFAULT_REGION`, with the former taking higher precedence. For example, if both `AWS_REGION` and `AWS_DEFAULT_REGION` are set, the `AWS_REGION` value is used; otherwise, if only `AWS_DEFAULT_REGION` is set, its value is used. If neither configuration `aws_region` nor environment variables are set, a run-time error “no region or host specified” will be thrown.
 
-This isformation above is the same as described here: https://docs.konghq.com/hub/kong-inc/aws-lambda/#aws-region-as-environment-variable
+This information above is the same as described here: https://docs.konghq.com/hub/kong-inc/aws-lambda/#aws-region-as-environment-variable
 
 ### Policy Example
 A sample IAM policy looks like:
@@ -51,6 +52,10 @@ A sample IAM policy looks like:
     ]
 }
 ```
+
+Known Issues
+=================================
+Occasionally during startup "prometheus" cannot be found during initial population which will cause Kong to be restarted.
 
 Plugin Config Example
 =================================
@@ -77,3 +82,7 @@ Example resources
 =================================
 * For a complete walk through of Kong plugin creation check [this blog post on the Kong website](https://konghq.com/blog/custom-lua-plugin-kong-gateway).
 * For Kong PDK resources see [Kong docs](https://docs.konghq.com/gateway/latest/pdk/)
+
+Contact
+=================================
+* Aaron Renner <admin@aar.dev>

@@ -2,6 +2,7 @@ local PLUGIN_NAME = "aws-cost-aggregator"
 local cjson = require("cjson.safe")
 local date = require("date")
 local fmt = string.format
+local tbl = table 
 
 local AWS_KEY = os.getenv("AWS_KEY")
 local AWS_SECRET = os.getenv("AWS_SECRET")
@@ -101,10 +102,34 @@ end
 -- @param val is string
 function _M.split_csv_table(val)
   local t = {}
-  for k, v in val:gmatch("(%w+):(.+)") do
-    t[k] = v
+  for k, v in val:gmatch("([%w-]+):([%w-]+)") do
+    --  if it already exists
+    if t[k] then
+      -- array must exist, push to existing array
+      tbl.insert(t[k], v)
+    else
+      -- create new array to store values
+      local new_values = {}
+      tbl.insert(new_values, v)
+      t[k] = new_values
+    end
   end
   return t
+end
+
+-- Simmiliar to the split_csv_table except this does the reverse
+-- the output looks like key:value repeating seperated by commas
+-- @param table is a Lua basic datatype
+function _M.table_to_csv(table)
+  local t = {}
+  for a,b in pairs(table) do
+    local tag_key = a
+    for _,v in pairs(b) do
+      tbl.insert(t, tostring(fmt("%s:%s", tag_key, v)))
+    end
+  end
+  local s = tbl.concat(t, ",")
+  return s
 end
 
 -- special function to make obtaining config easier
@@ -121,6 +146,14 @@ function _M.get_config_from_env()
   }
   -- return
   return res
+end
+
+-- This function was inspired by the examples here http://lua-users.org/wiki/SimpleRound
+-- This function turns for example 0.872 into 0.87 and if the number was 0.875 it should become 0.88
+-- @param mones should be a number
+function _M.round_currency(mones)
+  local mult = 10^2
+  return math.floor(mones * mult + 0.5) / mult
 end
 
 return _M

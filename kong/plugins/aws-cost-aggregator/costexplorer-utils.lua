@@ -32,9 +32,7 @@ function _M.monthly_cost_last_12_months(config)
         local filter_obj = {
           Tags = {
             Key = k,
-            Values = {
-              v
-            }
+            Values = v
           }
         }
 
@@ -74,9 +72,7 @@ function _M.monthly_cost_last_30_days(config)
         local filter_obj = {
           Tags = {
             Key = k,
-            Values = {
-              v
-            }
+            Values = v
           }
         }
 

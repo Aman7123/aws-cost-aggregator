@@ -9,7 +9,9 @@ local ngx_timer_at = ngx.timer.at
 local ngx_timer_every = ngx.timer.every
 
 -- init the unique labels in prometheus
-exporter.init()
+local CONFIG = get_config_from_env()
+log_debug(fmt("built config %s", cjson.encode(CONFIG)))
+exporter.init(CONFIG)
 
 -- set the plugin priority, which determines plugin execution order
 local AWSCostAggregator = {}
@@ -30,19 +32,17 @@ function AWSCostAggregator:init_worker()
     if success then
       log_debug("running init_worker")
       log_debug(fmt("selected worker id %s for executing timers", ngx.worker.pid()))
-      local config = get_config_from_env()
-      log_debug(fmt("built config %s", cjson.encode(res)))
       -- Create a pointer to the function for use within the timers
       -- I had problems assigning this `exporter.log` directly to the timer
       local run_function = exporter.log
       -- Initial created so our metrics are available ASAP
-      local _, err = ngx_timer_at(0, run_function, config)
+      local _, err = ngx_timer_at(15, run_function, CONFIG)
       if err then
         log_error(true, "Failed to start the nginx_timer_at")
       end
       -- Create this delayed monitor for watching every few minutes
       --                           5 minutes
-      local _, err = ngx_timer_every(config.ag_update_frequency, run_function, config)
+      local _, err = ngx_timer_every(CONFIG.ag_update_frequency, run_function, CONFIG)
       if err then
         log_error(true, "Failed to start the nginx_timer_every")
       end
